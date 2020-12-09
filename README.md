@@ -4,7 +4,7 @@
 We kept the dependencies as minimal as possible. The following packages are required:
 - cfitsio-3.47 or later
 - wcslib-5.16 or later
-- CUDA Toolkit
+- ROCm toolkit
 
  All of these packages can be found in "Dependencies" directory or get from follow address:
 
