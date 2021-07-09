@@ -1,4 +1,4 @@
-# HCGrid-AMD
+# HCGrid-ROCm
 
 ## Dependencies
 We kept the dependencies as minimal as possible. The following packages are required:
