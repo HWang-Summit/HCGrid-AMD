@@ -50,7 +50,7 @@ void _prepare_grid_kernel(uint32_t kernel_type, double *kernel_params, double sp
     // Set kernel type & parameters
     if(kernel_type == GAUSS1D){// params = ('0.5 / kernel_sigma ** 2',)
         num_params = 1;
-        kernel_params[0] = 0.5 / pow(kernel_params[0], 2.);    // 这块儿我们翻译错误
+        kernel_params[0] = 0.5 / pow(kernel_params[0], 2.); 
         h_GMaps.bearing_needed = false;
     }
     else if(kernel_type == GAUSS2D){// params = ('kernel_sigma_maj', 'kernel_sigma_min', 'PA')
@@ -105,7 +105,7 @@ void read_input_map(const char *infile){
     y = (uint32_t) naxis[0];
     x = (uint32_t) naxis[1];
     z = (uint32_t) (naxes == 3) ? naxis[2] : 1;
-    h_GMaps.data_shape = z * y * x;  // 这块儿应该是x*y*z ?
+    h_GMaps.data_shape = z * y * x; 
     // printf("data.shape=%d\n", z);
     h_GMaps.spec_dim = z;
 
