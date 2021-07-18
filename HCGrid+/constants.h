@@ -20,7 +20,7 @@
 #include <algorithm>
 #include <hip/hip_runtime.h>
 #include "hip/hip_runtime.h"
-// #include "device_launch_parameters.h"
+
 using namespace std;
 
 #ifdef PI
