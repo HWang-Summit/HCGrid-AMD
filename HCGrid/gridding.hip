@@ -1,7 +1,7 @@
 #include "hip/hip_runtime.h"
 // --------------------------------------------------------------------//
 //                                                                     //
-// title                  :gridding.cu                                 //
+// title                  :gridding.hip                                 //
 // description            :Sort and Gridding process.                  //
 // author                 :                                            //
 //                                                                     //
@@ -82,25 +82,25 @@ void init_input_with_cpu(const int &sort_param) {
 
     // Pre-process by h_hpx_idx
     double iTime4 = cpuSecond();
-    uint64_t first_ring = h_pix2ring(h_hpx_idx[0]); // HEALPix 划分后的HEALPix区块的首行
-    uint32_t temp_count = (uint32_t)(1 + h_pix2ring(h_hpx_idx[data_shape - 1]) - first_ring);   // The total number of ring
+    uint64_t first_ring = h_pix2ring(h_hpx_idx[0]); 
+    uint32_t temp_count = (uint32_t)(1 + h_pix2ring(h_hpx_idx[data_shape - 1]) - first_ring);
     h_Healpix.firstring = first_ring;
     h_Healpix.usedrings = temp_count;
-    h_start_ring = RALLOC(uint32_t, temp_count + 1); // 环号下标 ——> 区块号下标
-    h_start_ring[0] = 0;    // 首行(的下标0）——> 起始区块号（的下标，也就是第一个区块号0）
+    h_start_ring = RALLOC(uint32_t, temp_count + 1); 
+    h_start_ring[0] = 0;  
     uint64_t startpix, num_pix_in_ring;   // important
     uint32_t ring_idx = 0;
     bool shifted;
-    for(uint64_t cnt_ring = 1; cnt_ring < temp_count; ++cnt_ring) { // 从第二行开始
+    for(uint64_t cnt_ring = 1; cnt_ring < temp_count; ++cnt_ring) { 
         h_get_ring_info_small(cnt_ring + first_ring, startpix, num_pix_in_ring, shifted);
-        uint32_t cnt_ring_idx = searchLastPosLessThan(h_hpx_idx, ring_idx, data_shape, startpix);   // Binary search the startpix index
+        uint32_t cnt_ring_idx = searchLastPosLessThan(h_hpx_idx, ring_idx, data_shape, startpix);
         if (cnt_ring_idx == data_shape) {
             cnt_ring_idx = ring_idx - 1;
         }
         ring_idx = cnt_ring_idx + 1;    // The start array index of the first HEALPix index in one ring.
-        h_start_ring[cnt_ring] = ring_idx;  // Construct the R_start  行号：起始区块号
+        h_start_ring[cnt_ring] = ring_idx;  // Construct the R_start  
     }
-    h_start_ring[temp_count] = data_shape;  // 这里貌似有问题，最大行的其实区块这里直接赋值为最大index
+    h_start_ring[temp_count] = data_shape;  
     double iTime5 = cpuSecond();
 
     // Release
@@ -199,19 +199,19 @@ __global__ void hcgrid (
         uint32_t *d_start_ring,
         uint64_t *d_hpx_idx) {
     uint32_t warp_id = blockIdx.x * (blockDim.x / 32) + threadIdx.x / 32;   // warp index of the whole 1Dim grid and 1Dim block.
-    uint32_t thread_id = ((warp_id % d_const_GMaps.block_warp_num) * 32 + threadIdx.x % 32) * d_const_GMaps.factor;   // thread index in one ring.
+    uint32_t thread_id = ((warp_id % d_const_GMaps.block_warp_num) * 32 + threadIdx.x % 32) * d_const_GMaps.factor;   
     int get_num = 0;
     int target_num = 0;
     if (thread_id < d_const_zyx[1]) {
         uint32_t left = thread_id;    //Initial left
         uint32_t right = left + d_const_GMaps.factor - 1;   // Initial right
-        if (right > d_const_zyx[1]) {                      // 这块儿感觉有问题，怎么是等于每行的最大索引时-1了？(待定）
+        if (right > d_const_zyx[1]) {                      
             right = d_const_zyx[1];
         }
         uint32_t step = (warp_id / d_const_GMaps.block_warp_num) * d_const_zyx[1];    // Thread step for change the ring
         left = left + step;
         right = right + step;
-        double temp_weights[3], temp_data[3], l1[3], b1[3];  //这里预设为最大线程粗化因子为3，所以每次连续写入factor个值
+        double temp_weights[3], temp_data[3], l1[3], b1[3];  
         for (thread_id = left; thread_id <= right; ++thread_id) {
             temp_weights[thread_id - left] = d_weightscube[thread_id];
             temp_data[thread_id - left] = d_datacube[thread_id];
@@ -220,33 +220,33 @@ __global__ void hcgrid (
         }
 
         // get northeast ring and southeast ring
-        double disc_theta = HALFPI - b1[0];     // disc中心点所在行的赤纬
-        double disc_phi = l1[0];                // disc中心点所在行的赤经
-        double utheta = disc_theta - d_const_GMaps.disc_size;   // 最上面一行中心点的赤纬
+        double disc_theta = HALFPI - b1[0];     
+        double disc_phi = l1[0];                
+        double utheta = disc_theta - d_const_GMaps.disc_size;   
         double north_theta = utheta * RAD2DEG;
         if (utheta * RAD2DEG < 0){
             utheta = 0;
-        }  // 这里修改了，影响极点位置
-//        printf("utheta = %f\n", utheta*RAD2DEG);
-        uint64_t upix = d_ang2pix(utheta, disc_phi);            //最上面一行中心点所属的HEALPix的pixel索引
-        uint64_t uring = d_pix2ring(upix);                      //最上面一行中心点所在行的HEALPix的行号
-//        printf("uring = %d\n", d_const_Healpix.firstring);
+        }  
+
+        uint64_t upix = d_ang2pix(utheta, disc_phi);            
+        uint64_t uring = d_pix2ring(upix);                      
+
         if (uring < d_const_Healpix.firstring){
             uring = d_const_Healpix.firstring;
         }
-        utheta = disc_theta + d_const_GMaps.disc_size;  // 最下面一行中心点的赤纬
-//        printf("utheta = %f\n", utheta*RAD2DEG);
-        upix = d_ang2pix(utheta, disc_phi);             // 最下面一行中心点所属的HEALPix的pixel索引
-        uint64_t dring = d_pix2ring(upix);              // 最下面一行中心点所在行的HEALPix行号
-//        printf("dring = %d\n", dring);
+        utheta = disc_theta + d_const_GMaps.disc_size;  
+
+        upix = d_ang2pix(utheta, disc_phi);             
+        uint64_t dring = d_pix2ring(upix);              
+
         if (dring >= d_const_Healpix.firstring + d_const_Healpix.usedrings){
             dring = d_const_Healpix.firstring + d_const_Healpix.usedrings - 1;
         }
 
         // Go from the Northeast ring to the Southeast one
-        uint32_t start_int = d_start_ring[uring - d_const_Healpix.firstring];  // get the first HEALPix index
+        uint32_t start_int = d_start_ring[uring - d_const_Healpix.firstring];  
         // tex1Dfetch(tex_start_ring, uring - d_const_Healpix.firstring);
-        while (uring <= dring) {                                                            // of one ring.
+        while (uring <= dring) {                                                            
             // get ring info
             uint32_t end_int = d_start_ring[uring - d_const_Healpix.firstring+1];
                     // tex1Dfetch(tex_start_ring, uring - d_const_Healpix.firstring+1);
@@ -261,7 +261,7 @@ __global__ void hcgrid (
             disc_theta = HALFPI - b1[0];
             disc_phi = l1[0];
             uphi = disc_phi - d_const_GMaps.disc_size;
-            uint64_t lpix = d_ang2pix(utheta, uphi); // disc size 范围首行的起始pixel
+            uint64_t lpix = d_ang2pix(utheta, uphi); 
             if (disc_theta * RAD2DEG <= NORTH_B || disc_theta * RAD2DEG >= SOUTH_B){
                 lpix = startpix;
             } else{
@@ -278,7 +278,7 @@ __global__ void hcgrid (
             } else{
                 rpix = rpix;
             }
-//            uint64_t rpix = startpix + num_pix_in_ring - 1;
+
             if (!(rpix >= startpix && rpix < startpix + num_pix_in_ring)) {
                 start_int = end_int;
                 continue;
