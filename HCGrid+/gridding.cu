@@ -1,11 +1,38 @@
 #include "hip/hip_runtime.h"
-// --------------------------------------------------------------------//
-//                                                                     //
-// title                  :gridding.cu                                 //
-// description            :Sort and Gridding process.                  //
-// author                 :                                            //
-//                                                                     //
-// --------------------------------------------------------------------//
+// --------------------------------------------------------------------
+//
+// title                  :gridding.cu
+// description            :Sort and Gridding process.
+// author                 :
+//
+// --------------------------------------------------------------------
+// Copyright (C) 2010+ by Hao Wang, Qi Luo
+//
+// This program is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// This program is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
+//
+// Note: Some HEALPix related helper functions and convolution algorithm 
+// code are adopted from (HEALPix C++) library (Copyright (C) 2003-2012
+//  Max-Planck-Society; author Martin Reinecke) and Cygrid software 
+// (Copyright (C) 2010+ by Benjamin Winkel, Lars Flöer & Daniel Lenz),
+// respectively.
+// 
+// For more information about HEALPix, see http://healpix.sourceforge.net
+// Healpix_cxx is being developed at the Max-Planck-Institut fuer Astrophysik
+// and financially supported by the Deutsches Zentrum fuer Luft- und Raumfahrt
+// (DLR).
+// 
+// For more information about Cygrid, see https://github.com/bwinkel/cygrid.
+// Cygrid was developed in the framework of the Effelsberg-Bonn H i Survey (EBHIS).
+// 
+// --------------------------------------------------------------------
 
 #include <boost/sort/sort.hpp>
 #include "gridding.h"
@@ -14,7 +41,7 @@
 using boost::sort::block_indirect_sort;
 
 
-#define stream_size 24
+#define stream_size 5
 #define max_group_size 24
 hipStream_t stream[stream_size];
 
@@ -92,25 +119,25 @@ void init_input_with_cpu(const int &sort_param) {
 
     // Pre-process by h_hpx_idx
     double iTime4 = cpuSecond();
-    uint64_t first_ring = h_pix2ring(h_hpx_idx[0]); // HEALPix 划分后的HEALPix区块的首行
+    uint64_t first_ring = h_pix2ring(h_hpx_idx[0]); 
     uint32_t temp_count = (uint32_t)(1 + h_pix2ring(h_hpx_idx[data_shape - 1]) - first_ring);   // The total number of ring
     h_Healpix.firstring = first_ring;
     h_Healpix.usedrings = temp_count;
-    h_start_ring = RALLOC(uint32_t, temp_count + 1); // 环号下标 ——> 区块号下标
-    h_start_ring[0] = 0;    // 首行(的下标0）——> 起始区块号（的下标，也就是第一个区块号0）
+    h_start_ring = RALLOC(uint32_t, temp_count + 1); 
+    h_start_ring[0] = 0;    
     uint64_t startpix, num_pix_in_ring;   // important
     uint32_t ring_idx = 0;
     bool shifted;
-    for(uint64_t cnt_ring = 1; cnt_ring < temp_count; ++cnt_ring) { // 从第二行开始
+    for(uint64_t cnt_ring = 1; cnt_ring < temp_count; ++cnt_ring) { 
         h_get_ring_info_small(cnt_ring + first_ring, startpix, num_pix_in_ring, shifted);
-        uint32_t cnt_ring_idx = searchLastPosLessThan(h_hpx_idx, ring_idx, data_shape, startpix);   // Binary search the startpix index
+        uint32_t cnt_ring_idx = searchLastPosLessThan(h_hpx_idx, ring_idx, data_shape, startpix);  
         if (cnt_ring_idx == data_shape) {
             cnt_ring_idx = ring_idx - 1;
         }
         ring_idx = cnt_ring_idx + 1;    // The start array index of the first HEALPix index in one ring.
-        h_start_ring[cnt_ring] = ring_idx;  // Construct the R_start  行号：起始区块号
+        h_start_ring[cnt_ring] = ring_idx;  // Construct the R_start  
     }
-    h_start_ring[temp_count] = data_shape;  // 这里貌似有问题，最大行的其实区块这里直接赋值为最大index
+    h_start_ring[temp_count] = data_shape;  
     double iTime5 = cpuSecond();
 
     // Release
@@ -120,7 +147,7 @@ void init_input_with_cpu(const int &sort_param) {
     // Get runtime
     double iTime6 = cpuSecond();
     coordinate_order_time = iTime6 - iTime1;
-    // printf("Coords sort time = %f, ", (iTime6 - iTime1) * 1000.);
+
     printf("%f ", (iTime6 - iTime1) * 1000.);
 }
 void pre_order_data(const int dim){
@@ -233,13 +260,13 @@ __global__ void hcgrid (
     if (thread_id < d_const_zyx[1]) {
         uint32_t left = thread_id;    //Initial left
         uint32_t right = left + d_const_GMaps.factor - 1;   // Initial right
-        if (right > d_const_zyx[1]) {                      // 这块儿感觉有问题，怎么是等于每行的最大索引时-1了？(待定）
+        if (right > d_const_zyx[1]) {                     
             right = d_const_zyx[1];
         }
         uint32_t step = (warp_id / d_const_GMaps.block_warp_num) * d_const_zyx[1];    // Thread step for change the ring
         left = left + step;
         right = right + step;
-        double temp_weights[3], temp_data[3], l1[3], b1[3];  //这里预设为最大线程粗化因子为3，所以每次连续写入factor个值
+        double temp_weights[3], temp_data[3], l1[3], b1[3];  
         for (thread_id = left; thread_id <= right; ++thread_id) {
             temp_weights[thread_id - left] = d_weightscube[thread_id];
             temp_data[thread_id - left] = d_datacube[thread_id];
@@ -248,29 +275,29 @@ __global__ void hcgrid (
         }
 
         // get northeast ring and southeast ring
-        double disc_theta = HALFPI - b1[0];     // disc中心点所在行的赤纬
-        double disc_phi = l1[0];                // disc中心点所在行的赤经
-        double utheta = disc_theta - d_const_GMaps.disc_size;   // 最上面一行中心点的赤纬
+        double disc_theta = HALFPI - b1[0];     
+        double disc_phi = l1[0];                
+        double utheta = disc_theta - d_const_GMaps.disc_size;   
         double north_theta = utheta * RAD2DEG;
         if (utheta * RAD2DEG < 0){
             utheta = 0;
-        }  // 这里修改了，影响极点位置
-        uint64_t upix = d_ang2pix(utheta, disc_phi);            //最上面一行中心点所属的HEALPix的pixel索引
-        uint64_t uring = d_pix2ring(upix);                      //最上面一行中心点所在行的HEALPix的行号
+        }  
+        uint64_t upix = d_ang2pix(utheta, disc_phi);            
+        uint64_t uring = d_pix2ring(upix);                   
         if (uring < d_const_Healpix.firstring){
             uring = d_const_Healpix.firstring;
         }
-        utheta = disc_theta + d_const_GMaps.disc_size;  // 最下面一行中心点的赤纬
-        upix = d_ang2pix(utheta, disc_phi);             // 最下面一行中心点所属的HEALPix的pixel索引
-        uint64_t dring = d_pix2ring(upix);              // 最下面一行中心点所在行的HEALPix行号
+        utheta = disc_theta + d_const_GMaps.disc_size;  
+        upix = d_ang2pix(utheta, disc_phi);             
+        uint64_t dring = d_pix2ring(upix);              
         if (dring >= d_const_Healpix.firstring + d_const_Healpix.usedrings){
             dring = d_const_Healpix.firstring + d_const_Healpix.usedrings - 1;
         }
 
         // Go from the Northeast ring to the Southeast one
-        uint32_t start_int = d_start_ring[uring - d_const_Healpix.firstring];  // get the first HEALPix index
+        uint32_t start_int = d_start_ring[uring - d_const_Healpix.firstring];  
         // tex1Dfetch(tex_start_ring, uring - d_const_Healpix.firstring);
-        while (uring <= dring) {                                                            // of one ring.
+        while (uring <= dring) {                                                            
             // get ring info
             uint32_t end_int = d_start_ring[uring - d_const_Healpix.firstring+1];
                     // tex1Dfetch(tex_start_ring, uring - d_const_Healpix.firstring+1);
@@ -286,7 +313,7 @@ __global__ void hcgrid (
             uphi = disc_phi - d_const_GMaps.disc_size;
             d_pix2ang(d_hpx_idx[0], hpx_zero_theta, hpx_zero_phi);
             double zero_angle = uphi * RAD2DEG;
-            uint64_t lpix = d_ang2pix(utheta, uphi); // disc size 范围首行的起始pixel
+            uint64_t lpix = d_ang2pix(utheta, uphi); 
             if (disc_theta * RAD2DEG <= NORTH_B || disc_theta * RAD2DEG >= SOUTH_B){
                 lpix = startpix;
             } else{
@@ -501,7 +528,6 @@ void solve_gridding(const char *infile, const char *tarfile, const char *outfile
     // Send data from CPU to GPU.
     data_h2d();
     double iTime4 = cpuSecond();
-    // printf("h_zyx[1]=%d, h_zyx[2]=%d, ", h_zyx[1], h_zyx[2]);
 
     read_and_sort(argc, argv, infile);
     pre_order_time = coordinate_order_time + data_order_time;

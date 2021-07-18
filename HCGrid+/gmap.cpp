@@ -1,4 +1,4 @@
-//----------------------------------------------------------------
+// --------------------------------------------------------------------
 //
 // title                  :gmap.cpp
 // description            :\
@@ -8,9 +8,36 @@
 //                          set wcs for output pixels.
 //                          write output map.
 //                          write reordered map.
-// author                 :Qi Luo
+// author                 :
 //
-//----------------------------------------------------------------
+// --------------------------------------------------------------------
+// Copyright (C) 2010+ by Hao Wang, Qi Luo
+//
+// This program is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// This program is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
+//
+// Note: Some HEALPix related helper functions and convolution algorithm 
+// code are adopted from (HEALPix C++) library (Copyright (C) 2003-2012
+//  Max-Planck-Society; author Martin Reinecke) and Cygrid software 
+// (Copyright (C) 2010+ by Benjamin Winkel, Lars Flöer & Daniel Lenz),
+// respectively.
+// 
+// For more information about HEALPix, see http://healpix.sourceforge.net
+// Healpix_cxx is being developed at the Max-Planck-Institut fuer Astrophysik
+// and financially supported by the Deutsches Zentrum fuer Luft- und Raumfahrt
+// (DLR).
+// 
+// For more information about Cygrid, see https://github.com/bwinkel/cygrid.
+// Cygrid was developed in the framework of the Effelsberg-Bonn H i Survey (EBHIS).
+// 
+// --------------------------------------------------------------------
 
 #include <hdf5.h>
 #include <fitsio.h>
@@ -81,29 +108,13 @@ void _prepare_grid_kernel(uint32_t kernel_type, double *kernel_params, double sp
 /* Read input coordinate. */
 
 void read_input_coordinate(const char *infile){
-    hid_t file_id;// hid_t是HDF5对象id通用数据类型，每个id标志一个HDF5对象
-    herr_t status; // herr_t是HDF5报错和状态的通用数据类型
+    hid_t file_id;
+    herr_t status; 
     hid_t coords;
     // Number of input points.
     uint32_t numOfImputPoints;
-    // 打开HDF5文件
-    // 文件id = H5Fopen(const char *文件�?
-    //                  unsigned 读写flags,
-    //                    - H5F_ACC_RDWR可读可写    //                    - H5F_ACC_RDONLY只读 
-    //                  hid_t 访问性质)
+
     file_id = H5Fopen(infile, H5F_ACC_RDWR, H5P_DEFAULT); 
-
-    // Number of input points.
-    // uint32_t numOfImputPoints = 10000000; //竖扫ver19个文件每个文件采样点�?3660*19=69540 , 横扫hor 18*3876=69768
-    // h_GMaps.data_shape = numOfImputPoints;
-    // h_GMaps.spec_dim = 10;
-    
-    //分配内存空间
-
-    // h_data = RALLOC(double, numOfImputPoints);
-    // h_lons = RALLOC(double, numOfImputPoints); //longitude赤经ra
-    // h_lats = RALLOC(double, numOfImputPoints); //latitude赤纬dec
-    // h_weights = RALLOC(double, numOfImputPoints); //采样权重
 
     coords = H5Gopen(file_id, "coords", H5P_DEFAULT);
 
@@ -113,16 +124,13 @@ void read_input_coordinate(const char *infile){
     status = H5Aread(attr_id, H5T_NATIVE_INT, &numOfImputPoints);
     // printf("numofinput is: %d\n", numOfImputPoints);
     h_GMaps.data_shape = numOfImputPoints;
-    h_GMaps.spec_dim = 10;
+    h_GMaps.spec_dim = 5;
 
     //分配内存空间
     h_lons = RALLOC(double, numOfImputPoints); //longitude赤经ra
     h_lats = RALLOC(double, numOfImputPoints); //latitude赤纬dec
     h_weights = RALLOC(double, numOfImputPoints); //采样权重
-    // Read the coordinate
-    // 创建数据集中的数据本�?   // dataset_id = H5Dopen(group位置id,
-    //                 const char *name, 数据集名
-    //                    数据集访问性质)
+ 
     hid_t dataset_id;
     // Read the coordinates
     //赤经
@@ -135,16 +143,17 @@ void read_input_coordinate(const char *infile){
     // Intial the weight
     for(int i=0; i<numOfImputPoints; ++i)
         h_weights[i] = 1.;
-    // 关闭dataset相关对象
+
     status = H5Dclose(dataset_id);
-    // 关闭文件对象
+
     status = H5Fclose(file_id);
 }
 void read_input_data(const char *infile){
-    hid_t file_id;// hid_t是HDF5对象id通用数据类型，每个id标志一个HDF5对象
-    herr_t status; // herr_t是HDF5报错和状态的通用数据类型
+    hid_t file_id;
+    herr_t status; 
     hid_t signal;
-    // 打开HDF5文件
+
+
     file_id = H5Fopen(infile, H5F_ACC_RDWR, H5P_DEFAULT); 
     signal = H5Gopen(file_id, "signal", H5P_DEFAULT);
     hid_t dataset_id;
@@ -160,9 +169,7 @@ void read_input_data(const char *infile){
         sig = "signal_";
         status = H5Dread(dataset_id, H5T_NATIVE_DOUBLE, H5S_ALL, H5S_ALL, H5P_DEFAULT, h_data[i]);
     }
-    // for (int i = 0; i < numOfImputPoints; i++){
-    //     printf("channel 0 data %d %lf read by thread %d\n",i, h_data[0][i], my_rank);
-    // }
+
     status = H5Dclose(dataset_id);
     status = H5Fclose(file_id);
 }

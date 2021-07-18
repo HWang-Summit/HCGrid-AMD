@@ -5,6 +5,33 @@
 // author                 :
 //
 // --------------------------------------------------------------------
+// Copyright (C) 2010+ by Hao Wang, Qi Luo
+//
+// This program is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// This program is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
+//
+// Note: Some HEALPix related helper functions and convolution algorithm 
+// code are adopted from (HEALPix C++) library (Copyright (C) 2003-2012
+//  Max-Planck-Society; author Martin Reinecke) and Cygrid software 
+// (Copyright (C) 2010+ by Benjamin Winkel, Lars Flöer & Daniel Lenz),
+// respectively.
+// 
+// For more information about HEALPix, see http://healpix.sourceforge.net
+// Healpix_cxx is being developed at the Max-Planck-Institut fuer Astrophysik
+// and financially supported by the Deutsches Zentrum fuer Luft- und Raumfahrt
+// (DLR).
+// 
+// For more information about Cygrid, see https://github.com/bwinkel/cygrid.
+// Cygrid was developed in the framework of the Effelsberg-Bonn H i Survey (EBHIS).
+// 
+// --------------------------------------------------------------------
 
 #include "HCGrid.h"
 
@@ -102,7 +129,6 @@ int main(int argc, char **argv){
         strcat(sortfile, num);
         strcat(sortfile, ".fits");
     }
-    // printf("order: %s, num: %s, ", order, num);
 
     // Initialize healpix
     _Healpix_init(1, RING);
@@ -129,7 +155,7 @@ int main(int argc, char **argv){
     if (factor) {
         h_GMaps.factor = atoi(factor);
     }
-    // printf("h_GMaps.factor=%d, ", h_GMaps.factor);
+
     if (sfile) {
         if (bDim){
             solve_gridding(infile, tarfile, outfile, sortfile, atoi(order), atoi(bDim), argc, argv );
@@ -158,9 +184,7 @@ int main(int argc, char **argv){
                     BlockDim_x = SP;
                 else
                     BlockDim_x = T_max - T_max % 32;
-            // printf("blockDim_x=%d\n", BlockDim_x);
-            // printf("Tmax=%d\n",T_max);
-            // printf("Tmax_h=%d\n",T_max_h);
+
             solve_gridding(infile, tarfile, outfile, NULL, atoi(order), BlockDim_x, argc, argv);
         }
         else
