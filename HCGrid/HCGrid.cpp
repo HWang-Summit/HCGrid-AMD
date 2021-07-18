@@ -101,11 +101,6 @@ int main(int argc, char **argv){
         strcat(sortfile, num);
         strcat(sortfile, ".fits");
     }
-    // printf("order: %s, num: %s, ", order, num);
-//    printf("input file is: %s\n", infile);
-//    printf("target file is: %s\n", tarfile);
-//    printf("output file is: %s\n", outfile);
-//    printf("sort file is: %s\n", sortfile);
 
     // Initialize healpix
     _Healpix_init(1, RING);
@@ -132,7 +127,7 @@ int main(int argc, char **argv){
     if (factor) {
         h_GMaps.factor = atoi(factor);
     }
-    // printf("h_GMaps.factor=%d, ", h_GMaps.factor);
+
     if (sfile) {
         if (bDim){
             solve_gridding(infile, tarfile, outfile, sortfile, atoi(order), atoi(bDim));
@@ -145,7 +140,7 @@ int main(int argc, char **argv){
                     BlockDim_x = SP;
                 else
                     BlockDim_x = T_max - T_max % 32;
-            // printf("blockDim_x=%d\n", BlockDim_x);
+
             solve_gridding(infile, tarfile, outfile, sortfile, atoi(order), BlockDim_x);
         } else
             solve_gridding(infile, tarfile, outfile, sortfile, atoi(order), 64);
@@ -161,9 +156,7 @@ int main(int argc, char **argv){
                     BlockDim_x = SP;
                 else
                     BlockDim_x = T_max - T_max % 32;
-            // printf("blockDim_x=%d\n", BlockDim_x);
-            // printf("Tmax=%d\n",T_max);
-            // printf("Tmax_h=%d\n",T_max_h);
+
             solve_gridding(infile, tarfile, outfile, NULL, atoi(order), BlockDim_x);
         }
         else
